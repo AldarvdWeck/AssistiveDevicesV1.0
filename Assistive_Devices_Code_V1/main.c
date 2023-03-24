@@ -5,9 +5,15 @@
 #include "h_bridge.h"
 #include "servo.h"
 
+#include <stdio.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <avr/io.h>
+
+//Bleutooth
+#define F_CPU   16000000
+#define BUAD    9600
+#define BRC     ((F_CPU/16/BUAD)-1)//buad rate calculator
 
 #define DEBOUNCE	_delay_ms(20)		// debounce delay voor de knoppen
 
@@ -24,23 +30,28 @@
 #define vorige_steiger      PF5			// pin A5
 #define nood_knop	    PF4			// pin A4
 
-void buzzer(signed char power)                          // buzzer function
-{                                                       // als je een '1' meegeeft aan de functie gaat de buzzer aan
-    if (power == 1)                                     // als je een '0' meegeeft aan de functie gaat de buzzer uit
-    {
-        PORTD |= (1<<PD0);                              // buzzer aan
-    }
-    else if (power == 0)
-    {
-        PORTD &= ~(1<<PD0);                             // buzzer uit
-    }
+int btgetal = 999;//BLUETOOTH GETAL
+
+void init_bluetooth(void)
+{
+	UBRR0H = (BRC >> 8);
+    	UBRR0L = BRC;
+    	UCSR0B = (1 << RXEN0) |(1 << RXCIE0);
+    	UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
 }
 
 void init(void)
 {
 	init_h_bridge();									// init h brug
 	init_servo();										// init servo
+	init_bluetooth();
 	sei();											// eneble global interrupts
+}
+
+//Bluetooth interrupt
+ISR(USART0_RX_vect)
+{
+    btgetal = UDR0;
 }
 
 int main(void)
@@ -68,6 +79,21 @@ int main(void)
 
 	while (1)
 	{
+		switch(btgetal)
+	    {
+        case 0:
+            PORTB &= ~(1 << PK7);
+            break;
+        case 1:
+            PORTB |= (1 << PK7);
+            break;
+        case 2:
+            PORTB &= ~(1 << PK6);
+            break;
+        case 3:
+            PORTB |= (1 << PK6);
+	    }
+		
 		switch(status)
 		{
         case 0:
